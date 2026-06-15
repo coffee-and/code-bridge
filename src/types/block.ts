@@ -1,47 +1,33 @@
-export type BlockType = "move" | "rotate" | "changeColor" | "repeat";
+export type MoveDirection = "left" | "right" | "up" | "down";
 
-export type MoveDirection = "up" | "down" | "left" | "right";
-
-export interface BaseBlock {
+export interface MoveBlock {
   id: string;
-  type: BlockType;
-}
-
-export interface MoveBlock extends BaseBlock {
   type: "move";
-  params: {
-    shapeId: string;
-    direction: MoveDirection;
-    distance: number;
-  };
+  targetShapeId: string;
+  direction: MoveDirection;
+  distance: number;
 }
 
-export interface RotateBlock extends BaseBlock {
+export interface RotateBlock {
+  id: string;
   type: "rotate";
-  params: {
-    shapeId: string;
-    angle: number;
-  };
+  targetShapeId: string;
+  angle: number;
 }
 
-export interface ChangeColorBlock extends BaseBlock {
+export interface ChangeColorBlock {
+  id: string;
   type: "changeColor";
-  params: {
-    shapeId: string;
-    color: string;
-  };
+  targetShapeId: string;
+  color: string;
 }
 
-export interface RepeatBlock extends BaseBlock {
+export interface RepeatBlock {
+  id: string;
   type: "repeat";
-  params: {
-    count: number;
-  };
-  children: ProgramBlock[];
+  count: number;
 }
 
-export type ProgramBlock =
-  | MoveBlock
-  | RotateBlock
-  | ChangeColorBlock
-  | RepeatBlock;
+export type ActionBlock = MoveBlock | RotateBlock | ChangeColorBlock;
+
+export type ProgramBlock = ActionBlock | RepeatBlock;

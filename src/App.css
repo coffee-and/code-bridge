@@ -688,6 +688,283 @@
 }
 
 /* ========================================
+   Block Palette
+======================================== */
+
+.block-palette {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.block-card {
+  width: 100%;
+  min-height: 46px;
+  padding: var(--space-3) var(--space-4);
+
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+
+  border: 1px solid var(--color-border);
+  border-left: 14px solid var(--block-card-accent);
+  border-radius: var(--radius-md);
+
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+
+  text-align: left;
+  box-shadow: var(--shadow-xs);
+
+  transition:
+    transform var(--transition-fast),
+    border-color var(--transition-base),
+    background var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+.block-card:hover {
+  transform: translateY(-1px);
+
+  border-color: var(--block-card-accent);
+  border-left-color: var(--block-card-accent);
+
+  background: var(--color-surface-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+.block-card:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-xs);
+}
+
+.block-card strong {
+  color: var(--color-text-primary);
+
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+}
+
+/* ========================================
+   Block Palette Types
+======================================== */
+
+.block-card--motion {
+  --block-card-accent: var(--color-palette-blue-1);
+}
+
+.block-card--rotate {
+  --block-card-accent: var(--color-palette-blue-2);
+}
+
+.block-card--color {
+  --block-card-accent: var(--color-palette-blue-3);
+}
+
+.block-card--repeat {
+  --block-card-accent: var(--color-palette-blue-5);
+}
+
+/* ========================================
+   Repeat Program Block
+======================================== */
+
+.program-block--repeat {
+  border-left-color: var(--color-palette-blue-4);
+  background: var(--color-primary-soft);
+}
+
+/* ========================================
+   Active Program Block
+======================================== */
+
+.program-block--active {
+  border-color: var(--color-primary);
+
+  box-shadow:
+    0 0 0 2px var(--color-primary-muted),
+    var(--shadow-sm);
+}
+
+.program-block--active .program-block__number {
+  color: var(--color-text-inverse);
+  background: var(--color-primary);
+}
+
+/* ========================================
+   Program Workspace
+======================================== */
+
+.workspace-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.workspace-clear-button {
+  padding: var(--space-1) var(--space-2);
+
+  border-radius: var(--radius-sm);
+
+  color: var(--color-text-soft);
+  background: transparent;
+
+  font-size: var(--font-size-xs);
+}
+
+.workspace-clear-button:hover {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+.program-block-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.program-block {
+  position: relative;
+
+  padding: var(--space-4);
+
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+
+  border: 1px solid var(--color-border);
+  border-left-width: 4px;
+  border-radius: var(--radius-md);
+
+  background: var(--color-surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.program-block--move {
+  border-left-color: var(--color-block-motion);
+}
+
+.program-block--rotate {
+  border-left-color: var(--color-block-condition);
+}
+
+.program-block--changeColor {
+  border-left-color: var(--color-block-variable);
+}
+
+.program-block__number {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: var(--radius-full);
+
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+}
+
+.program-block__content {
+  min-width: 0;
+  flex: 1;
+
+  display: grid;
+  gap: var(--space-3);
+}
+
+.program-block__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.program-block__header strong {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.program-block__remove {
+  width: 28px;
+  height: 28px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: var(--radius-sm);
+
+  color: var(--color-text-soft);
+  background: transparent;
+
+  font-size: var(--font-size-lg);
+}
+
+.program-block__remove:hover {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+.program-block__fields {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.block-control {
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-2);
+
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+
+  outline: none;
+}
+
+.block-control:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-soft);
+}
+
+.block-control--number {
+  width: 78px;
+}
+
+.block-color-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.block-color-option {
+  width: 24px;
+  height: 24px;
+
+  border: 2px solid var(--color-surface);
+  border-radius: var(--radius-full);
+
+  box-shadow: 0 0 0 1px var(--color-border-strong);
+}
+
+.block-color-option--selected {
+  box-shadow:
+    0 0 0 2px var(--color-primary),
+    0 0 0 4px var(--color-primary-soft);
+}
+
+/* ========================================
    Responsive
 ======================================== */
 

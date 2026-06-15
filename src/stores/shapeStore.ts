@@ -11,6 +11,7 @@ interface ShapeState {
   updateShape: (id: string, changes: Partial<Shape>) => void;
   removeShape: (id: string) => void;
   selectShape: (id: string | null) => void;
+  replaceShapes: (shapes: Shape[]) => void;
   resetShapes: () => void;
 }
 
@@ -54,7 +55,18 @@ export const useShapeStore = create<ShapeState>((set) => ({
     })),
 
   selectShape: (id) => {
-    set({ selectedShapeId: id });
+    set({
+      selectedShapeId: id,
+    });
+  },
+
+  replaceShapes: (shapes) => {
+    set({
+      shapes: shapes.map((shape) => ({
+        ...shape,
+      })),
+      selectedShapeId: null,
+    });
   },
 
   resetShapes: () => {

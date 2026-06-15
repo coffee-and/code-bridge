@@ -117,6 +117,19 @@
   --color-shape-gray: #8799a7;
 
   /* ========================================
+   Block Palette Blues
+======================================== */
+
+  --color-palette-blue-1: #1685f2;
+  --color-palette-blue-2: #10a4ef;
+  --color-palette-blue-3: #4cbee9;
+  --color-palette-blue-4: #78cceb;
+  --color-palette-blue-5: #a9dff2;
+
+  --color-palette-text-light: #ffffff;
+  --color-palette-text-dark: #23485d;
+
+  /* ========================================
      Spacing
   ======================================== */
 

@@ -1,55 +1,48 @@
 import { create } from "zustand";
 
-export type ExecutionStatus =
-  | "idle"
-  | "running"
-  | "paused"
-  | "completed"
-  | "error";
+import type { Shape } from "../types/shape";
 
 interface ExecutionState {
-  status: ExecutionStatus;
-  activeBlockId: string | null;
-  speed: number;
-  errorMessage: string | null;
+  currentStep: number;
+  activeBlockIndex: number | null;
+  initialShapes: Shape[] | null;
 
-  setStatus: (status: ExecutionStatus) => void;
-  setActiveBlockId: (id: string | null) => void;
-  setSpeed: (speed: number) => void;
-  setError: (message: string | null) => void;
-  resetExecution: () => void;
+  setCurrentStep: (step: number) => void;
+  setActiveBlockIndex: (index: number | null) => void;
+  captureInitialShapes: (shapes: Shape[]) => void;
+  clearExecution: () => void;
 }
 
 export const useExecutionStore = create<ExecutionState>((set) => ({
-  status: "idle",
-  activeBlockId: null,
-  speed: 1,
-  errorMessage: null,
+  currentStep: 0,
+  activeBlockIndex: null,
+  initialShapes: null,
 
-  setStatus: (status) => {
-    set({ status });
+  setCurrentStep: (step) => {
+    set({ currentStep: step });
   },
 
-  setActiveBlockId: (id) => {
-    set({ activeBlockId: id });
+  setActiveBlockIndex: (index) => {
+    set({ activeBlockIndex: index });
   },
 
-  setSpeed: (speed) => {
-    set({ speed });
-  },
+  captureInitialShapes: (shapes) => {
+    set((state) => {
+      if (state.initialShapes) {
+        return state;
+      }
 
-  setError: (message) => {
-    set({
-      errorMessage: message,
-      status: message ? "error" : "idle",
+      return {
+        initialShapes: shapes.map((shape) => ({ ...shape })),
+      };
     });
   },
 
-  resetExecution: () => {
+  clearExecution: () => {
     set({
-      status: "idle",
-      activeBlockId: null,
-      errorMessage: null,
+      currentStep: 0,
+      activeBlockIndex: null,
+      initialShapes: null,
     });
   },
 }));
