@@ -19,6 +19,8 @@ interface ProgramState {
 
   updateBlock: (id: string, changes: Partial<ProgramBlock>) => void;
 
+  reorderBlocks: (activeId: string, overId: string) => void;
+
   removeBlock: (id: string) => void;
   clearProgram: () => void;
 }
@@ -85,9 +87,36 @@ export const useProgramStore = create<ProgramState>((set) => ({
   updateBlock: (id, changes) =>
     set((state) => ({
       blocks: state.blocks.map((block) =>
-        block.id === id ? ({ ...block, ...changes } as ProgramBlock) : block,
+        block.id === id
+          ? ({
+              ...block,
+              ...changes,
+            } as ProgramBlock)
+          : block,
       ),
     })),
+
+  reorderBlocks: (activeId, overId) =>
+    set((state) => {
+      const activeIndex = state.blocks.findIndex(
+        (block) => block.id === activeId,
+      );
+
+      const overIndex = state.blocks.findIndex((block) => block.id === overId);
+
+      if (activeIndex === -1 || overIndex === -1 || activeIndex === overIndex) {
+        return state;
+      }
+
+      const nextBlocks = [...state.blocks];
+      const [movedBlock] = nextBlocks.splice(activeIndex, 1);
+
+      nextBlocks.splice(overIndex, 0, movedBlock);
+
+      return {
+        blocks: nextBlocks,
+      };
+    }),
 
   removeBlock: (id) =>
     set((state) => ({
@@ -95,6 +124,8 @@ export const useProgramStore = create<ProgramState>((set) => ({
     })),
 
   clearProgram: () => {
-    set({ blocks: [] });
+    set({
+      blocks: [],
+    });
   },
 }));

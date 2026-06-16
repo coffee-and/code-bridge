@@ -1,17 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  Circle,
-  Layer,
-  Rect,
-  RegularPolygon,
-  Stage,
-  Transformer,
-} from "react-konva";
+import { Ellipse, Layer, Line, Rect, Stage, Transformer } from "react-konva";
 import type Konva from "konva";
 
 import { useShapeStore } from "../../stores/shapeStore";
 
 const MIN_CANVAS_HEIGHT = 420;
+const MIN_SHAPE_SIZE = 20;
 
 export const CanvasPreview = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -68,14 +62,21 @@ export const CanvasPreview = () => {
 
     const selectedNode = shapeRefs.current[selectedShapeId];
 
-    if (selectedNode) {
-      transformer.nodes([selectedNode]);
+    if (!selectedNode) {
+      transformer.nodes([]);
       transformer.getLayer()?.batchDraw();
+      return;
     }
+
+    transformer.nodes([selectedNode]);
+    transformer.getLayer()?.batchDraw();
   }, [selectedShapeId, shapes]);
 
-  const handleStageMouseDown = (event: Konva.KonvaEventObject<MouseEvent>) => {
-    const clickedOnStage = event.target === event.target.getStage();
+  const handleStagePointerDown = (
+    event: Konva.KonvaEventObject<MouseEvent | TouchEvent>,
+  ) => {
+    const stage = event.target.getStage();
+    const clickedOnStage = event.target === stage;
 
     if (clickedOnStage) {
       selectShape(null);
@@ -102,28 +103,82 @@ export const CanvasPreview = () => {
         <Stage
           width={canvasSize.width}
           height={canvasSize.height}
-          onMouseDown={handleStageMouseDown}
-          onTouchStart={(event) => {
-            const clickedOnStage = event.target === event.target.getStage();
-
-            if (clickedOnStage) {
-              selectShape(null);
-            }
-          }}
+          onMouseDown={handleStagePointerDown}
+          onTouchStart={handleStagePointerDown}
         >
           <Layer>
             {shapes.map((shape) => {
+              /*
+               * Store에서는 모든 도형의 x, y를
+               * 왼쪽 위 좌표로 유지한다.
+               *
+               * Konva에서는 도형 중심을 x, y로 사용해
+               * 회전 중심을 모든 도형에서 동일하게 맞춘다.
+               */
+              const centerX = shape.x + shape.width / 2;
+              const centerY = shape.y + shape.height / 2;
+
+              const handleDragEnd = (
+                event: Konva.KonvaEventObject<DragEvent>,
+              ) => {
+                updateShape(shape.id, {
+                  x: Math.round(event.target.x() - shape.width / 2),
+                  y: Math.round(event.target.y() - shape.height / 2),
+                });
+              };
+
+              const handleTransformEnd = () => {
+                const node = shapeRefs.current[shape.id];
+
+                if (!node) {
+                  return;
+                }
+
+                const scaleX = Math.abs(node.scaleX());
+                const scaleY = Math.abs(node.scaleY());
+
+                const nextWidth = Math.max(
+                  MIN_SHAPE_SIZE,
+                  Math.round(shape.width * scaleX),
+                );
+
+                const nextHeight = Math.max(
+                  MIN_SHAPE_SIZE,
+                  Math.round(shape.height * scaleY),
+                );
+
+                /*
+                 * Transformer가 적용한 scale을
+                 * 실제 width, height 값으로 옮기고
+                 * node의 scale은 다시 1로 초기화한다.
+                 */
+                node.scaleX(1);
+                node.scaleY(1);
+
+                updateShape(shape.id, {
+                  x: Math.round(node.x() - nextWidth / 2),
+                  y: Math.round(node.y() - nextHeight / 2),
+                  width: nextWidth,
+                  height: nextHeight,
+                  rotation: Math.round(node.rotation()),
+                });
+              };
+
               const commonProps = {
                 key: shape.id,
                 id: shape.id,
-                x: shape.x,
-                y: shape.y,
+
+                x: centerX,
+                y: centerY,
+
                 rotation: shape.rotation,
                 fill: shape.color,
                 visible: shape.visible,
                 draggable: true,
+
                 stroke:
                   selectedShapeId === shape.id ? "#006fc4" : "transparent",
+
                 strokeWidth: selectedShapeId === shape.id ? 2 : 0,
 
                 ref: (node: Konva.Node | null) => {
@@ -134,51 +189,36 @@ export const CanvasPreview = () => {
 
                 onTap: () => selectShape(shape.id),
 
-                onDragEnd: (event: Konva.KonvaEventObject<DragEvent>) => {
-                  updateShape(shape.id, {
-                    x: Math.round(event.target.x()),
-                    y: Math.round(event.target.y()),
-                  });
-                },
-
-                onTransformEnd: () => {
-                  const node = shapeRefs.current[shape.id];
-
-                  if (!node) {
-                    return;
-                  }
-
-                  const scaleX = node.scaleX();
-                  const scaleY = node.scaleY();
-
-                  node.scaleX(1);
-                  node.scaleY(1);
-
-                  updateShape(shape.id, {
-                    x: Math.round(node.x()),
-                    y: Math.round(node.y()),
-                    rotation: Math.round(node.rotation()),
-                    width: Math.max(20, Math.round(shape.width * scaleX)),
-                    height: Math.max(20, Math.round(shape.height * scaleY)),
-                  });
-                },
+                onDragEnd: handleDragEnd,
+                onTransformEnd: handleTransformEnd,
               };
 
               if (shape.type === "circle") {
                 return (
-                  <Circle
+                  <Ellipse
                     {...commonProps}
-                    radius={Math.min(shape.width, shape.height) / 2}
+                    radiusX={shape.width / 2}
+                    radiusY={shape.height / 2}
                   />
                 );
               }
 
               if (shape.type === "triangle") {
                 return (
-                  <RegularPolygon
+                  <Line
                     {...commonProps}
-                    sides={3}
-                    radius={Math.min(shape.width, shape.height) / 2}
+                    points={[
+                      -shape.width / 2,
+                      shape.height / 2,
+
+                      0,
+                      -shape.height / 2,
+
+                      shape.width / 2,
+                      shape.height / 2,
+                    ]}
+                    closed
+                    lineJoin="round"
                   />
                 );
               }
@@ -188,6 +228,8 @@ export const CanvasPreview = () => {
                   {...commonProps}
                   width={shape.width}
                   height={shape.height}
+                  offsetX={shape.width / 2}
+                  offsetY={shape.height / 2}
                   cornerRadius={8}
                 />
               );
@@ -202,9 +244,12 @@ export const CanvasPreview = () => {
               borderStroke="#0091ff"
               anchorStroke="#0091ff"
               anchorFill="#ffffff"
-              boundBoxFunc={(_, newBox) => {
-                if (newBox.width < 20 || newBox.height < 20) {
-                  return _;
+              boundBoxFunc={(oldBox, newBox) => {
+                if (
+                  Math.abs(newBox.width) < MIN_SHAPE_SIZE ||
+                  Math.abs(newBox.height) < MIN_SHAPE_SIZE
+                ) {
+                  return oldBox;
                 }
 
                 return newBox;

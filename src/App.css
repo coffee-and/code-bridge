@@ -686,6 +686,29 @@
     0 0 0 2px var(--color-primary),
     0 0 0 5px var(--color-primary-soft);
 }
+/* ========================================
+   Shared Block Accent Colors
+======================================== */
+
+.block-card--motion,
+.program-block--move {
+  --block-accent: var(--color-palette-blue-1);
+}
+
+.block-card--rotate,
+.program-block--rotate {
+  --block-accent: var(--color-palette-blue-2);
+}
+
+.block-card--color,
+.program-block--changeColor {
+  --block-accent: var(--color-palette-blue-3);
+}
+
+.block-card--repeat,
+.program-block--repeat {
+  --block-accent: var(--color-palette-blue-5);
+}
 
 /* ========================================
    Block Palette
@@ -706,7 +729,7 @@
   justify-content: flex-start;
 
   border: 1px solid var(--color-border);
-  border-left: 14px solid var(--block-card-accent);
+  border-left: 14px solid var(--block-accent);
   border-radius: var(--radius-md);
 
   color: var(--color-text-primary);
@@ -725,8 +748,8 @@
 .block-card:hover {
   transform: translateY(-1px);
 
-  border-color: var(--block-card-accent);
-  border-left-color: var(--block-card-accent);
+  border-color: var(--block-accent);
+  border-left-color: var(--block-accent);
 
   background: var(--color-surface-hover);
   box-shadow: var(--shadow-sm);
@@ -743,52 +766,6 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
-}
-
-/* ========================================
-   Block Palette Types
-======================================== */
-
-.block-card--motion {
-  --block-card-accent: var(--color-palette-blue-1);
-}
-
-.block-card--rotate {
-  --block-card-accent: var(--color-palette-blue-2);
-}
-
-.block-card--color {
-  --block-card-accent: var(--color-palette-blue-3);
-}
-
-.block-card--repeat {
-  --block-card-accent: var(--color-palette-blue-5);
-}
-
-/* ========================================
-   Repeat Program Block
-======================================== */
-
-.program-block--repeat {
-  border-left-color: var(--color-palette-blue-4);
-  background: var(--color-primary-soft);
-}
-
-/* ========================================
-   Active Program Block
-======================================== */
-
-.program-block--active {
-  border-color: var(--color-primary);
-
-  box-shadow:
-    0 0 0 2px var(--color-primary-muted),
-    var(--shadow-sm);
-}
-
-.program-block--active .program-block__number {
-  color: var(--color-text-inverse);
-  background: var(--color-primary);
 }
 
 /* ========================================
@@ -822,6 +799,10 @@
   gap: var(--space-3);
 }
 
+/* ========================================
+   Program Block
+======================================== */
+
 .program-block {
   position: relative;
 
@@ -832,24 +813,84 @@
   gap: var(--space-3);
 
   border: 1px solid var(--color-border);
-  border-left-width: 4px;
+  border-left: 14px solid var(--block-accent);
   border-radius: var(--radius-md);
 
+  color: var(--color-text-primary);
   background: var(--color-surface);
+
   box-shadow: var(--shadow-xs);
+
+  cursor: grab;
+  touch-action: none;
+
+  transition:
+    transform var(--transition-fast),
+    border-color var(--transition-base),
+    background var(--transition-base),
+    box-shadow var(--transition-base),
+    opacity var(--transition-base);
 }
 
-.program-block--move {
-  border-left-color: var(--color-block-motion);
+.program-block:hover {
+  border-color: var(--block-accent);
+  border-left-color: var(--block-accent);
+
+  background: var(--color-surface-hover);
+  box-shadow: var(--shadow-sm);
 }
 
-.program-block--rotate {
-  border-left-color: var(--color-block-condition);
+.program-block:active {
+  cursor: grabbing;
 }
 
-.program-block--changeColor {
-  border-left-color: var(--color-block-variable);
+.program-block select,
+.program-block input,
+.program-block button {
+  touch-action: auto;
 }
+
+.program-block select,
+.program-block button {
+  cursor: pointer;
+}
+
+.program-block input {
+  cursor: text;
+}
+
+/* ========================================
+   Program Block Dragging
+======================================== */
+
+.program-block--dragging {
+  z-index: 10;
+
+  opacity: 0.82;
+  background: var(--color-surface);
+
+  box-shadow: var(--shadow-lg);
+  cursor: grabbing;
+}
+
+/* ========================================
+   Program Block Dragging
+======================================== */
+
+.program-block--dragging {
+  z-index: 10;
+
+  opacity: 0.92;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+
+  cursor: grabbing;
+  will-change: transform;
+}
+
+/* ========================================
+   Program Block Content
+======================================== */
 
 .program-block__number {
   width: 26px;
@@ -862,11 +903,16 @@
 
   border-radius: var(--radius-full);
 
-  color: var(--color-primary);
+  color: var(--block-accent);
   background: var(--color-primary-soft);
 
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
+}
+
+.program-block--active .program-block__number {
+  color: var(--color-text-inverse);
+  background: var(--block-accent);
 }
 
 .program-block__content {
@@ -917,8 +963,13 @@
   gap: var(--space-2);
 
   color: var(--color-text-secondary);
+
   font-size: var(--font-size-sm);
 }
+
+/* ========================================
+   Block Controls
+======================================== */
 
 .block-control {
   min-height: var(--control-height-sm);
@@ -941,6 +992,55 @@
 .block-control--number {
   width: 78px;
 }
+
+/* ========================================
+   Shape Select
+======================================== */
+
+.shape-select {
+  min-width: 0;
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.shape-select__swatch {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-xs);
+
+  box-shadow: var(--shadow-xs);
+}
+
+.shape-select__swatch--circle {
+  border-radius: var(--radius-full);
+}
+
+.shape-select__swatch--triangle {
+  width: 0;
+  height: 0;
+
+  border: none;
+  border-right: 9px solid transparent;
+  border-bottom: 17px solid currentColor;
+  border-left: 9px solid transparent;
+  border-radius: 0;
+
+  background: transparent;
+  box-shadow: none;
+}
+
+.shape-select__control {
+  min-width: 120px;
+}
+
+/* ========================================
+   Block Color Options
+======================================== */
 
 .block-color-options {
   display: flex;
