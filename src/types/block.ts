@@ -26,6 +26,7 @@ export interface RepeatBlock {
   id: string;
   type: "repeat";
   count: number;
+  children: ProgramBlock[];
 }
 
 export type ActionBlock = MoveBlock | RotateBlock | ChangeColorBlock;

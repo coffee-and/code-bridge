@@ -1,4 +1,8 @@
-import { executeProgram, executeProgramBlock } from "../../engine/interpreter";
+import {
+  createExecutionPlan,
+  executeProgram,
+  executeProgramStep,
+} from "../../engine/interpreter";
 import { useExecutionStore } from "../../stores/executionStore";
 import { useProgramStore } from "../../stores/programStore";
 import { useShapeStore } from "../../stores/shapeStore";
@@ -11,13 +15,15 @@ export const ExecutionControls = () => {
 
   const currentStep = useExecutionStore((state) => state.currentStep);
   const initialShapes = useExecutionStore((state) => state.initialShapes);
+
   const setCurrentStep = useExecutionStore((state) => state.setCurrentStep);
-  const setActiveBlockIndex = useExecutionStore(
-    (state) => state.setActiveBlockIndex,
-  );
+
+  const setActiveBlockId = useExecutionStore((state) => state.setActiveBlockId);
+
   const captureInitialShapes = useExecutionStore(
     (state) => state.captureInitialShapes,
   );
+
   const clearExecution = useExecutionStore((state) => state.clearExecution);
 
   const prepareInitialShapes = () => {
@@ -33,34 +39,42 @@ export const ExecutionControls = () => {
   };
 
   const handleRun = () => {
-    if (blocks.length === 0) {
-      window.alert("실행할 블록을 먼저 추가해 주세요.");
+    const executionPlan = createExecutionPlan(blocks);
+
+    if (executionPlan.length === 0) {
+      window.alert("실행할 명령 블록을 먼저 추가해 주세요.");
       return;
     }
 
     prepareInitialShapes();
-    executeProgram(blocks);
 
-    setCurrentStep(blocks.length);
-    setActiveBlockIndex(blocks.length - 1);
+    const executedSteps = executeProgram(blocks);
+    const lastStep = executedSteps.at(-1);
+
+    setCurrentStep(executedSteps.length);
+    setActiveBlockId(lastStep?.blockId ?? null);
   };
 
   const handleStep = () => {
-    if (blocks.length === 0) {
-      window.alert("실행할 블록을 먼저 추가해 주세요.");
+    const executionPlan = createExecutionPlan(blocks);
+
+    if (executionPlan.length === 0) {
+      window.alert("실행할 명령 블록을 먼저 추가해 주세요.");
       return;
     }
 
-    if (currentStep >= blocks.length) {
-      window.alert("모든 블록을 실행했습니다.");
+    if (currentStep >= executionPlan.length) {
+      window.alert("모든 명령을 실행했습니다.");
       return;
     }
 
     prepareInitialShapes();
 
-    executeProgramBlock(blocks[currentStep], blocks[currentStep - 1]);
+    const step = executionPlan[currentStep];
 
-    setActiveBlockIndex(currentStep);
+    executeProgramStep(step);
+
+    setActiveBlockId(step.blockId);
     setCurrentStep(currentStep + 1);
   };
 
@@ -81,9 +95,11 @@ export const ExecutionControls = () => {
       >
         실행
       </button>
+
       <button className="button" type="button" onClick={handleStep}>
         한 단계
       </button>
+
       <button className="button" type="button" onClick={handleReset}>
         초기화
       </button>

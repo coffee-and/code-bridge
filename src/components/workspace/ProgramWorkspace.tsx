@@ -3,6 +3,7 @@ import {
   KeyboardSensor,
   PointerSensor,
   closestCenter,
+  useDroppable,
   type DragEndEvent,
   useSensor,
   useSensors,
@@ -13,12 +14,20 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import type { CSSProperties } from "react";
 
 import { useExecutionStore } from "../../stores/executionStore";
-import { useProgramStore } from "../../stores/programStore";
+import {
+  countProgramBlocks,
+  getBlockParentId,
+  useProgramStore,
+} from "../../stores/programStore";
 import { useShapeStore } from "../../stores/shapeStore";
 import type { MoveDirection, ProgramBlock } from "../../types/block";
 import type { Shape } from "../../types/shape";
+
+const ROOT_CONTAINER_ID = "root";
+const CONTAINER_PREFIX = "container:";
 
 const SHAPE_COLORS = [
   "#0091ff",
@@ -33,14 +42,30 @@ const SHAPE_COLORS = [
 
 type UpdateBlock = (id: string, changes: Partial<ProgramBlock>) => void;
 
-interface SortableProgramBlockProps {
-  block: ProgramBlock;
-  index: number;
+interface ProgramBlockListProps {
+  blocks: ProgramBlock[];
+  parentId: string;
+  depth: number;
   shapes: Shape[];
-  isActive: boolean;
+  activeBlockId: string | null;
   updateBlock: UpdateBlock;
   removeBlock: (id: string) => void;
 }
+
+interface SortableProgramBlockProps {
+  block: ProgramBlock;
+  index: number;
+  depth: number;
+  shapes: Shape[];
+  activeBlockId: string | null;
+  updateBlock: UpdateBlock;
+  removeBlock: (id: string) => void;
+}
+
+const getContainerId = (parentId: string) => `${CONTAINER_PREFIX}${parentId}`;
+
+const parseContainerId = (id: string) =>
+  id.startsWith(CONTAINER_PREFIX) ? id.slice(CONTAINER_PREFIX.length) : null;
 
 const getBlockTitle = (block: ProgramBlock) => {
   switch (block.type) {
@@ -71,11 +96,61 @@ const getShapeTypeName = (shape: Shape) => {
   }
 };
 
+const ProgramBlockList = ({
+  blocks,
+  parentId,
+  depth,
+  shapes,
+  activeBlockId,
+  updateBlock,
+  removeBlock,
+}: ProgramBlockListProps) => {
+  const containerId = getContainerId(parentId);
+
+  const { setNodeRef, isOver } = useDroppable({
+    id: containerId,
+  });
+
+  return (
+    <ol
+      ref={setNodeRef}
+      className={`program-block-list ${
+        depth > 0 ? "program-block-list--nested" : ""
+      } ${isOver ? "program-block-list--over" : ""}`}
+    >
+      {blocks.length === 0 && depth > 0 && (
+        <li className="repeat-block__empty">
+          블록을 이 안으로 드래그해 주세요.
+        </li>
+      )}
+
+      <SortableContext
+        items={blocks.map((block) => block.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        {blocks.map((block, index) => (
+          <SortableProgramBlock
+            key={block.id}
+            block={block}
+            index={index}
+            depth={depth}
+            shapes={shapes}
+            activeBlockId={activeBlockId}
+            updateBlock={updateBlock}
+            removeBlock={removeBlock}
+          />
+        ))}
+      </SortableContext>
+    </ol>
+  );
+};
+
 const SortableProgramBlock = ({
   block,
   index,
+  depth,
   shapes,
-  isActive,
+  activeBlockId,
   updateBlock,
   removeBlock,
 }: SortableProgramBlockProps) => {
@@ -95,11 +170,17 @@ const SortableProgramBlock = ({
       ? shapes.find((shape) => shape.id === block.targetShapeId)
       : null;
 
-  const style = {
+  const style: CSSProperties = {
     transform: transform
       ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
       : undefined,
     transition,
+  };
+
+  const stopDragPropagation = (
+    event: React.PointerEvent | React.MouseEvent | React.TouchEvent,
+  ) => {
+    event.stopPropagation();
   };
 
   return (
@@ -107,9 +188,9 @@ const SortableProgramBlock = ({
       ref={setNodeRef}
       style={style}
       className={`program-block program-block--${block.type} ${
-        isActive ? "program-block--active" : ""
+        activeBlockId === block.id ? "program-block--active" : ""
       } ${isDragging ? "program-block--dragging" : ""}`}
-      title="블록을 드래그하여 순서를 변경할 수 있어요."
+      data-depth={depth}
       {...attributes}
       {...listeners}
     >
@@ -122,14 +203,21 @@ const SortableProgramBlock = ({
           <button
             className="program-block__remove"
             type="button"
-            aria-label={`${index + 1}번째 블록 삭제`}
-            onClick={() => removeBlock(block.id)}
+            aria-label={`${getBlockTitle(block)} 블록 삭제`}
+            onPointerDown={stopDragPropagation}
+            onClick={(event) => {
+              event.stopPropagation();
+              removeBlock(block.id);
+            }}
           >
             ×
           </button>
         </div>
 
-        <div className="program-block__fields">
+        <div
+          className="program-block__fields"
+          onPointerDown={stopDragPropagation}
+        >
           {block.type !== "repeat" && (
             <div className="shape-select">
               <span
@@ -256,7 +344,7 @@ const SortableProgramBlock = ({
 
           {block.type === "repeat" && (
             <>
-              <span>바로 위 명령을</span>
+              <span>내부 명령을</span>
 
               <input
                 className="block-control block-control--number"
@@ -279,6 +367,22 @@ const SortableProgramBlock = ({
             </>
           )}
         </div>
+
+        {block.type === "repeat" && (
+          <div className="repeat-block__body">
+            <div className="repeat-block__label">반복 범위</div>
+
+            <ProgramBlockList
+              blocks={block.children}
+              parentId={block.id}
+              depth={depth + 1}
+              shapes={shapes}
+              activeBlockId={activeBlockId}
+              updateBlock={updateBlock}
+              removeBlock={removeBlock}
+            />
+          </div>
+        )}
       </div>
     </li>
   );
@@ -286,14 +390,18 @@ const SortableProgramBlock = ({
 
 export const ProgramWorkspace = () => {
   const blocks = useProgramStore((state) => state.blocks);
+
   const updateBlock = useProgramStore((state) => state.updateBlock);
-  const reorderBlocks = useProgramStore((state) => state.reorderBlocks);
+
+  const moveBlock = useProgramStore((state) => state.moveBlock);
+
   const removeBlock = useProgramStore((state) => state.removeBlock);
+
   const clearProgram = useProgramStore((state) => state.clearProgram);
 
   const shapes = useShapeStore((state) => state.shapes);
 
-  const activeBlockIndex = useExecutionStore((state) => state.activeBlockIndex);
+  const activeBlockId = useExecutionStore((state) => state.activeBlockId);
 
   const clearExecution = useExecutionStore((state) => state.clearExecution);
 
@@ -311,12 +419,34 @@ export const ProgramWorkspace = () => {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
-    if (!over || active.id === over.id) {
+    if (!over) {
       return;
     }
 
-    reorderBlocks(String(active.id), String(over.id));
+    const activeId = String(active.id);
+    const overId = String(over.id);
 
+    if (activeId === overId) {
+      return;
+    }
+
+    const droppedContainerId = parseContainerId(overId);
+
+    if (droppedContainerId) {
+      moveBlock(activeId, droppedContainerId, null);
+      clearExecution();
+      return;
+    }
+
+    const targetParentId =
+      getBlockParentId(blocks, overId) ?? ROOT_CONTAINER_ID;
+
+    moveBlock(activeId, targetParentId, overId);
+    clearExecution();
+  };
+
+  const handleRemoveBlock = (id: string) => {
+    removeBlock(id);
     clearExecution();
   };
 
@@ -325,13 +455,15 @@ export const ProgramWorkspace = () => {
     clearExecution();
   };
 
+  const totalBlockCount = countProgramBlocks(blocks);
+
   return (
     <section className="panel workspace-panel">
       <div className="panel__header">
         <h2 className="panel__title">프로그램</h2>
 
         <div className="workspace-panel__actions">
-          <span className="panel__count">{blocks.length}</span>
+          <span className="panel__count">{totalBlockCount}</span>
 
           {blocks.length > 0 && (
             <button
@@ -357,24 +489,15 @@ export const ProgramWorkspace = () => {
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
         >
-          <SortableContext
-            items={blocks.map((block) => block.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            <ol className="program-block-list">
-              {blocks.map((block, index) => (
-                <SortableProgramBlock
-                  key={block.id}
-                  block={block}
-                  index={index}
-                  shapes={shapes}
-                  isActive={activeBlockIndex === index}
-                  updateBlock={updateBlock}
-                  removeBlock={removeBlock}
-                />
-              ))}
-            </ol>
-          </SortableContext>
+          <ProgramBlockList
+            blocks={blocks}
+            parentId={ROOT_CONTAINER_ID}
+            depth={0}
+            shapes={shapes}
+            activeBlockId={activeBlockId}
+            updateBlock={updateBlock}
+            removeBlock={handleRemoveBlock}
+          />
         </DndContext>
       )}
     </section>

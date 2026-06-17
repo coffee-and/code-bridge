@@ -4,26 +4,30 @@ import type { Shape } from "../types/shape";
 
 interface ExecutionState {
   currentStep: number;
-  activeBlockIndex: number | null;
+  activeBlockId: string | null;
   initialShapes: Shape[] | null;
 
   setCurrentStep: (step: number) => void;
-  setActiveBlockIndex: (index: number | null) => void;
+  setActiveBlockId: (id: string | null) => void;
   captureInitialShapes: (shapes: Shape[]) => void;
   clearExecution: () => void;
 }
 
 export const useExecutionStore = create<ExecutionState>((set) => ({
   currentStep: 0,
-  activeBlockIndex: null,
+  activeBlockId: null,
   initialShapes: null,
 
   setCurrentStep: (step) => {
-    set({ currentStep: step });
+    set({
+      currentStep: step,
+    });
   },
 
-  setActiveBlockIndex: (index) => {
-    set({ activeBlockIndex: index });
+  setActiveBlockId: (id) => {
+    set({
+      activeBlockId: id,
+    });
   },
 
   captureInitialShapes: (shapes) => {
@@ -33,7 +37,9 @@ export const useExecutionStore = create<ExecutionState>((set) => ({
       }
 
       return {
-        initialShapes: shapes.map((shape) => ({ ...shape })),
+        initialShapes: shapes.map((shape) => ({
+          ...shape,
+        })),
       };
     });
   },
@@ -41,7 +47,7 @@ export const useExecutionStore = create<ExecutionState>((set) => ({
   clearExecution: () => {
     set({
       currentStep: 0,
-      activeBlockIndex: null,
+      activeBlockId: null,
       initialShapes: null,
     });
   },

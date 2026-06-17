@@ -9,6 +9,201 @@ import type {
 } from "../types/block";
 import { createId } from "../utils/createId";
 
+const ROOT_CONTAINER_ID = "root";
+
+const updateBlockRecursively = (
+  blocks: ProgramBlock[],
+  id: string,
+  changes: Partial<ProgramBlock>,
+): ProgramBlock[] =>
+  blocks.map((block) => {
+    if (block.id === id) {
+      return {
+        ...block,
+        ...changes,
+      } as ProgramBlock;
+    }
+
+    if (block.type === "repeat") {
+      return {
+        ...block,
+        children: updateBlockRecursively(block.children, id, changes),
+      };
+    }
+
+    return block;
+  });
+
+const removeBlockRecursively = (
+  blocks: ProgramBlock[],
+  id: string,
+): {
+  blocks: ProgramBlock[];
+  removedBlock: ProgramBlock | null;
+} => {
+  let removedBlock: ProgramBlock | null = null;
+
+  const nextBlocks: ProgramBlock[] = [];
+
+  for (const block of blocks) {
+    if (block.id === id) {
+      removedBlock = block;
+      continue;
+    }
+
+    if (block.type === "repeat") {
+      const childResult = removeBlockRecursively(block.children, id);
+
+      if (childResult.removedBlock) {
+        removedBlock = childResult.removedBlock;
+      }
+
+      nextBlocks.push({
+        ...block,
+        children: childResult.blocks,
+      });
+
+      continue;
+    }
+
+    nextBlocks.push(block);
+  }
+
+  return {
+    blocks: nextBlocks,
+    removedBlock,
+  };
+};
+
+const insertBlockRecursively = (
+  blocks: ProgramBlock[],
+  parentId: string,
+  blockToInsert: ProgramBlock,
+  overId: string | null,
+): ProgramBlock[] => {
+  if (parentId === ROOT_CONTAINER_ID) {
+    const nextBlocks = [...blocks];
+
+    if (!overId) {
+      nextBlocks.push(blockToInsert);
+      return nextBlocks;
+    }
+
+    const overIndex = nextBlocks.findIndex((block) => block.id === overId);
+
+    if (overIndex === -1) {
+      nextBlocks.push(blockToInsert);
+      return nextBlocks;
+    }
+
+    nextBlocks.splice(overIndex, 0, blockToInsert);
+    return nextBlocks;
+  }
+
+  return blocks.map((block) => {
+    if (block.type !== "repeat") {
+      return block;
+    }
+
+    if (block.id === parentId) {
+      const nextChildren = [...block.children];
+
+      if (!overId) {
+        nextChildren.push(blockToInsert);
+      } else {
+        const overIndex = nextChildren.findIndex(
+          (child) => child.id === overId,
+        );
+
+        if (overIndex === -1) {
+          nextChildren.push(blockToInsert);
+        } else {
+          nextChildren.splice(overIndex, 0, blockToInsert);
+        }
+      }
+
+      return {
+        ...block,
+        children: nextChildren,
+      };
+    }
+
+    return {
+      ...block,
+      children: insertBlockRecursively(
+        block.children,
+        parentId,
+        blockToInsert,
+        overId,
+      ),
+    };
+  });
+};
+
+const findParentId = (
+  blocks: ProgramBlock[],
+  targetId: string,
+  parentId = ROOT_CONTAINER_ID,
+): string | null => {
+  for (const block of blocks) {
+    if (block.id === targetId) {
+      return parentId;
+    }
+
+    if (block.type === "repeat") {
+      const childParentId = findParentId(block.children, targetId, block.id);
+
+      if (childParentId) {
+        return childParentId;
+      }
+    }
+  }
+
+  return null;
+};
+
+const containsBlock = (block: ProgramBlock, targetId: string): boolean => {
+  if (block.id === targetId) {
+    return true;
+  }
+
+  if (block.type !== "repeat") {
+    return false;
+  }
+
+  return block.children.some((child) => containsBlock(child, targetId));
+};
+
+const findBlock = (blocks: ProgramBlock[], id: string): ProgramBlock | null => {
+  for (const block of blocks) {
+    if (block.id === id) {
+      return block;
+    }
+
+    if (block.type === "repeat") {
+      const childBlock = findBlock(block.children, id);
+
+      if (childBlock) {
+        return childBlock;
+      }
+    }
+  }
+
+  return null;
+};
+
+export const getBlockParentId = (blocks: ProgramBlock[], blockId: string) =>
+  findParentId(blocks, blockId);
+
+export const countProgramBlocks = (blocks: ProgramBlock[]): number =>
+  blocks.reduce((count, block) => {
+    if (block.type === "repeat") {
+      return count + 1 + countProgramBlocks(block.children);
+    }
+
+    return count + 1;
+  }, 0);
+
 interface ProgramState {
   blocks: ProgramBlock[];
 
@@ -19,7 +214,11 @@ interface ProgramState {
 
   updateBlock: (id: string, changes: Partial<ProgramBlock>) => void;
 
-  reorderBlocks: (activeId: string, overId: string) => void;
+  moveBlock: (
+    activeId: string,
+    targetParentId: string,
+    overId?: string | null,
+  ) => void;
 
   removeBlock: (id: string) => void;
   clearProgram: () => void;
@@ -77,6 +276,7 @@ export const useProgramStore = create<ProgramState>((set) => ({
         id: createId("block"),
         type: "repeat",
         count: 3,
+        children: [],
       };
 
       return {
@@ -86,41 +286,48 @@ export const useProgramStore = create<ProgramState>((set) => ({
 
   updateBlock: (id, changes) =>
     set((state) => ({
-      blocks: state.blocks.map((block) =>
-        block.id === id
-          ? ({
-              ...block,
-              ...changes,
-            } as ProgramBlock)
-          : block,
-      ),
+      blocks: updateBlockRecursively(state.blocks, id, changes),
     })),
 
-  reorderBlocks: (activeId, overId) =>
+  moveBlock: (activeId, targetParentId, overId = null) =>
     set((state) => {
-      const activeIndex = state.blocks.findIndex(
-        (block) => block.id === activeId,
-      );
+      const activeBlock = findBlock(state.blocks, activeId);
 
-      const overIndex = state.blocks.findIndex((block) => block.id === overId);
-
-      if (activeIndex === -1 || overIndex === -1 || activeIndex === overIndex) {
+      if (!activeBlock) {
         return state;
       }
 
-      const nextBlocks = [...state.blocks];
-      const [movedBlock] = nextBlocks.splice(activeIndex, 1);
+      if (
+        activeBlock.type === "repeat" &&
+        targetParentId !== ROOT_CONTAINER_ID &&
+        containsBlock(activeBlock, targetParentId)
+      ) {
+        return state;
+      }
 
-      nextBlocks.splice(overIndex, 0, movedBlock);
+      if (activeId === targetParentId || activeId === overId) {
+        return state;
+      }
+
+      const removeResult = removeBlockRecursively(state.blocks, activeId);
+
+      if (!removeResult.removedBlock) {
+        return state;
+      }
 
       return {
-        blocks: nextBlocks,
+        blocks: insertBlockRecursively(
+          removeResult.blocks,
+          targetParentId,
+          removeResult.removedBlock,
+          overId,
+        ),
       };
     }),
 
   removeBlock: (id) =>
     set((state) => ({
-      blocks: state.blocks.filter((block) => block.id !== id),
+      blocks: removeBlockRecursively(state.blocks, id).blocks,
     })),
 
   clearProgram: () => {

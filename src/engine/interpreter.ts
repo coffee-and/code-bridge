@@ -1,9 +1,10 @@
 import { useShapeStore } from "../stores/shapeStore";
 import type { ActionBlock, ProgramBlock } from "../types/block";
 
-const isActionBlock = (block: ProgramBlock): block is ActionBlock => {
-  return block.type !== "repeat";
-};
+export interface ExecutionStep {
+  blockId: string;
+  block: ActionBlock;
+}
 
 export const executeActionBlock = (block: ActionBlock) => {
   const shapeStore = useShapeStore.getState();
@@ -41,11 +42,7 @@ export const executeActionBlock = (block: ActionBlock) => {
           break;
       }
 
-      shapeStore.updateShape(targetShape.id, {
-        x: nextPosition.x,
-        y: nextPosition.y,
-      });
-
+      shapeStore.updateShape(targetShape.id, nextPosition);
       break;
     }
 
@@ -63,35 +60,45 @@ export const executeActionBlock = (block: ActionBlock) => {
   }
 };
 
-export const executeProgramBlock = (
-  block: ProgramBlock,
-  previousBlock?: ProgramBlock,
-) => {
-  if (isActionBlock(block)) {
-    executeActionBlock(block);
-    return;
-  }
+export const createExecutionPlan = (
+  blocks: ProgramBlock[],
+): ExecutionStep[] => {
+  const steps: ExecutionStep[] = [];
 
-  if (!previousBlock || !isActionBlock(previousBlock)) {
-    return;
-  }
+  const visitBlocks = (currentBlocks: ProgramBlock[]) => {
+    for (const block of currentBlocks) {
+      if (block.type !== "repeat") {
+        steps.push({
+          blockId: block.id,
+          block,
+        });
 
-  const repeatCount = Math.max(1, Math.floor(block.count));
+        continue;
+      }
 
-  /*
-   * 바로 위 명령은 프로그램 순서에서 이미 한 번 실행됐어.
-   * 따라서 "3번 반복"을 총 3회 실행으로 해석해서
-   * 여기서는 2번을 추가 실행한다.
-   */
-  const additionalExecutions = repeatCount - 1;
+      const repeatCount = Math.min(100, Math.max(1, Math.floor(block.count)));
 
-  for (let index = 0; index < additionalExecutions; index += 1) {
-    executeActionBlock(previousBlock);
-  }
+      for (let index = 0; index < repeatCount; index += 1) {
+        visitBlocks(block.children);
+      }
+    }
+  };
+
+  visitBlocks(blocks);
+
+  return steps;
+};
+
+export const executeProgramStep = (step: ExecutionStep) => {
+  executeActionBlock(step.block);
 };
 
 export const executeProgram = (blocks: ProgramBlock[]) => {
-  for (let index = 0; index < blocks.length; index += 1) {
-    executeProgramBlock(blocks[index], blocks[index - 1]);
+  const executionPlan = createExecutionPlan(blocks);
+
+  for (const step of executionPlan) {
+    executeProgramStep(step);
   }
+
+  return executionPlan;
 };
